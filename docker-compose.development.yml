@@ -1,0 +1,82 @@
+version: '3.8'
+name: tandain-development
+services:
+  db: 
+    container_name: dev-postgres
+    image: postgres:14.1-alpine
+    restart: always                           # Restart if the container stops automatically
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports: 
+      - '5432:5432'
+    volumes: 
+      - db:/var/lib/postgresql/data            # When the container is restarted the data will be avalaible from docker managed volume
+      - ../tandain-user-api/src/config/db/dev_tandain_user-20220731.sql:/docker-entrypoint-initdb.d/dev_tandain_user.sql
+      - ../tandain-article-api/src/config/db/dev_tandain_article-20220731.sql:/docker-entrypoint-initdb.d/dev_tandain_article.sql
+  gateway:
+    container_name: dev-gateway
+    build: 
+      context: ../tandain-gateway
+      target: local
+    volumes: 
+      - ../tandain-gateway:/usr/app
+    command: yarn run start
+    ports:
+      - '4000:4000'
+    environment:
+      USER_API_HOST: http://user-api:3001
+      ARTICLE_API_HOST: http://article-api:3002
+      DEBUG: 1
+    depends_on:
+      - user-api
+      - article-api
+  user-api:
+    container_name: dev-user-api
+    build:
+      context: ../tandain-user-api
+      target: development
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: development
+      DEBUG: nodejs-docker-express:*          # Instructing the server to perform a verbose debug
+      HOST: ${USER_API_HOST}
+      PORT: ${USER_API_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_NAME: ${USER_API_DB_NAME}
+      DB_PORT: ${DB_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      - db
+    links: 
+      - db
+  article-api:
+    container_name: dev-article-api
+    build:
+      context: ../tandain-article-api
+      target: development
+    ports:
+      - '3002:3002'
+    environment:
+      NODE_ENV: development
+      DEBUG: nodejs-docker-express:*          # Instructing the server to perform a verbose debug
+      PORT: ${ARTICLE_API_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_NAME: ${ARTICLE_API_DB_NAME}
+      DB_PORT: ${DB_PORT}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      - db
+    links: 
+      - db
+volumes:
+  db: 
+    driver: development
