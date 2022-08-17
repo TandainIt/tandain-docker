@@ -14,6 +14,23 @@ services:
       - db:/var/lib/postgresql/data            # When the container is restarted the data will be avalaible from docker managed volume
       - ../tandain-user-api/src/config/db/dev_tandain_user-20220731.sql:/docker-entrypoint-initdb.d/dev_tandain_user.sql
       - ../tandain-article-api/src/config/db/dev_tandain_article-20220731.sql:/docker-entrypoint-initdb.d/dev_tandain_article.sql
+  gateway:
+    container_name: gateway
+    build: 
+      context: ../tandain-gateway
+      target: local
+    volumes: 
+      - ../tandain-gateway:/usr/app
+    command: bash -c "./wait-for-all-service.sh && yarn run dev"
+    ports:
+      - '4000:4000'
+    environment:
+      USER_API_HOST: http://user-api:3001
+      ARTICLE_API_HOST: http://article-api:3002
+      DEBUG: 1
+    depends_on:
+      - user-api
+      - article-api
   user-api:
     container_name: user-api
     build:
@@ -55,6 +72,7 @@ services:
       NODE_ENV: local
       DEBUG: nodejs-docker-express:*          # Instructing the server to perform a verbose debug
       PORT: ${ARTICLE_API_PORT}
+      JWT_SECRET: ${JWT_SECRET}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: db
