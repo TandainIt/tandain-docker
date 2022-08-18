@@ -25,9 +25,9 @@ services:
     ports:
       - '4000:4000'
     environment:
+      HOST: ${GATEWAY_HOST}
       USER_API_HOST: http://user-api:3001
       ARTICLE_API_HOST: http://article-api:3002
-      DEBUG: 1
     depends_on:
       - user-api
       - article-api
